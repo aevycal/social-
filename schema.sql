@@ -176,3 +176,32 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ===== voice messages =====
+alter table public.messages add column if not exists audio_url text;
+alter table public.messages add column if not exists audio_secs int;
+alter table public.messages drop constraint if exists messages_content_check;
+alter table public.messages add constraint messages_content_check
+  check (char_length(body) <= 2000 and (char_length(body) > 0 or image_url is not null or audio_url is not null));
+
+-- ===== push notifications =====
+create table if not exists public.push_subscriptions (
+  endpoint text primary key,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "see own devices" on public.push_subscriptions;
+create policy "see own devices" on public.push_subscriptions for select to authenticated using (auth.uid() = user_id);
+drop policy if exists "remove own devices" on public.push_subscriptions;
+create policy "remove own devices" on public.push_subscriptions for delete to authenticated using (auth.uid() = user_id);
+
+create or replace function public.save_push_subscription(p_endpoint text, p_p256dh text, p_auth text)
+returns void language sql security definer set search_path = public as $$
+  insert into public.push_subscriptions (endpoint, user_id, p256dh, auth)
+  values (p_endpoint, auth.uid(), p_p256dh, p_auth)
+  on conflict (endpoint) do update set user_id = auth.uid(), p256dh = excluded.p256dh, auth = excluded.auth;
+$$;
+grant execute on function public.save_push_subscription(text, text, text) to authenticated;
