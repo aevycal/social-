@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>aveysocial</title>
+<meta name="theme-color" content="#0084ff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<section id="auth" class="hidden">
+  <div class="card">
+    <div class="logo"><svg viewBox="0 0 32 32"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0099ff"/><stop offset="1" stop-color="#0066ff"/></linearGradient></defs><path fill="url(#g)" d="M16 2C8 2 2 7.8 2 15c0 4 1.800 7.500 4.800 9.900V30l4.700-2.600c1.400.4 2.900.6 4.500.6 8 0 14-5.800 14-13S24 2 16 2z"/><path fill="#fff" d="M7.500 19l5-5.300 3 3 5.200-3-5.100 5.400-3-3z"/></svg><span>avey<b>social</b></span></div>
+    <h1 id="auth-title">Sign in</h1>
+    <p id="auth-sub">Stay close to the people who matter.</p>
+    <form id="auth-form">
+      <div id="name-wrap" class="hidden">
+        <label for="username">Username</label>
+        <input class="field" id="username" autocomplete="username" placeholder="3–20 letters, numbers or _">
+      </div>
+      <label for="email">Email</label>
+      <input class="field" id="email" type="email" autocomplete="email" required>
+      <label for="password">Password</label>
+      <input class="field" id="password" type="password" minlength="6" autocomplete="current-password" required>
+      <button class="btn" id="auth-btn">Sign in</button>
+      <div class="msg" id="auth-msg" role="alert"></div>
+    </form>
+    <div class="switch"><span id="switch-text">New here?</span> <button class="link" id="switch-btn" type="button">Create an account</button></div>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+  <aside>
+    <div class="top">
+      <h2>Chats</h2>
+      <div class="acts">
+        <button class="ibtn" id="me-btn" title="My profile" aria-label="My profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.600-7 8-7s8 3 8 7"/></svg></button>
+        <button class="ibtn" id="theme" title="Switch theme" aria-label="Switch theme"><svg viewBox="0 0 24 24"><path d="M21 12.800A9 9 0 1 1 11.200 3 7 7 0 0 0 21 12.800z"/></svg></button>
+        <button class="ibtn" id="out" title="Sign out" aria-label="Sign out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+      </div>
+    </div>
+    <div id="tray" class="tray"></div>
+    <div class="searchbox"><input class="field" id="q" placeholder="Search people" aria-label="Search people"></div>
+    <div id="list"></div>
+  </aside>
+  <main>
+    <div id="placeholder" class="empty"><b>Welcome<span id="me-name"></span></b><br>Choose a chat or search for someone to start talking.</div>
+    <div id="chat" style="display:none;flex-direction:column;flex:1;min-height:0">
+      <div class="head">
+        <button class="ibtn" id="back" aria-label="Back to chats"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <span id="h-av"></span>
+        <div class="who"><b id="h-name"></b><small id="h-status"></small></div>
+      </div>
+      <div id="log"></div>
+      <form class="composer" id="send">
+        <input type="file" id="file" accept="image/*" class="hidden">
+        <button type="button" class="ibtn big" id="attach" title="Send a photo" aria-label="Send a photo"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.500" cy="8.500" r="1.500"/><path d="M21 15l-5-5L5 21"/></svg></button>
+        <textarea id="text" rows="1" maxlength="2000" placeholder="Aa" aria-label="Message"></textarea>
+        <button type="button" class="ibtn big" id="emoji" title="Emoji" aria-label="Emoji"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.500 2 4 2 4-2 4-2M9 9.500h.01M15 9.500h.01"/></svg></button>
+        <button class="ibtn big" id="sendbtn" title="Send" aria-label="Send"><span id="sendicon" style="font-size:22px">👍</span></button>
+        <div class="emojis hidden" id="emojis"></div>
+      </form>
+    </div>
+  </main>
+</div>
+<div id="compose" class="modal hidden"><div class="sheet">
+  <div class="tabs"><button type="button" data-t="story" class="on">Story</button><button type="button" data-t="note">Note</button></div>
+  <div id="p-story">
+    <div class="prev" id="prev"><textarea id="s-text" maxlength="200" placeholder="Start typing" aria-label="Story text"></textarea></div>
+    <div class="sw" id="sw"></div>
+    <input type="file" id="s-file" accept="image/*" class="hidden">
+    <button class="btn" id="s-img" style="background:var(--soft);color:var(--text);margin-top:0">Add a photo</button>
+    <button class="btn" id="s-post">Share story</button>
+  </div>
+  <div id="p-note" class="hidden">
+    <p style="color:var(--muted);margin:0 0 10px">A short note shows above your photo for 24 hours.</p>
+    <input class="field" id="n-text" maxlength="60" placeholder="What's on your mind?" aria-label="Note">
+    <button class="btn" id="n-save">Share note</button>
+    <div style="text-align:center;margin-top:12px"><button class="link" id="n-del" type="button">Delete note</button></div>
+  </div>
+  <div style="text-align:center;margin-top:14px"><button class="link" id="c-close" type="button" style="color:var(--muted)">Close</button></div>
+</div></div>
+<div id="viewer" class="hidden"><div class="vbox">
+  <div id="bars"></div>
+  <div class="vh"><span id="v-av"></span><b id="v-name"></b><small id="v-time"></small><button class="ibtn" id="v-close" aria-label="Close story">✕</button></div>
+  <div id="v-body"></div>
+  <button class="hit" id="v-prev" aria-label="Previous story"></button><button class="hit" id="v-next" aria-label="Next story"></button>
+  <div class="vf"><button id="v-like" type="button"></button><button id="v-del" type="button" class="hidden">Delete</button></div>
+</div></div>
+<div id="profile" class="modal hidden"><div class="sheet pf">
+  <div id="pf-av"></div>
+  <input type="file" id="pf-file" accept="image/*" class="hidden">
+  <button class="link" id="pf-change" type="button">Change photo</button>
+  <h3 id="pf-name"></h3>
+  <small id="pf-rel" style="color:var(--muted)"></small>
+  <div class="stats"><div><b id="pf-fers">0</b><span>Followers</span></div><div><b id="pf-fing">0</b><span>Following</span></div></div>
+  <p id="pf-bio" style="color:var(--muted);margin:0 0 12px"></p>
+  <textarea class="field" id="pf-bio-in" rows="2" maxlength="100" placeholder="Write a short bio" aria-label="Bio"></textarea>
+  <button class="btn" id="pf-main" type="button"></button>
+  <button class="btn alt" id="pf-msg" type="button">Message</button>
+  <div style="margin-top:14px"><button class="link" id="pf-close" type="button" style="color:var(--muted)">Close</button></div>
+</div></div>
+<div id="lightbox" class="hidden"><img alt=""></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
