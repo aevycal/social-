@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="aveysocial">
 <title>aveysocial</title>
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.webmanifest">
@@ -39,12 +42,14 @@
       <h2>Chats</h2>
       <div class="acts">
         <button class="ibtn" id="me-btn" title="My profile" aria-label="My profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.600-7 8-7s8 3 8 7"/></svg></button>
+        <button class="ibtn" id="set-btn" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
         <button class="ibtn" id="theme" title="Switch theme" aria-label="Switch theme"><svg viewBox="0 0 24 24"><path d="M21 12.800A9 9 0 1 1 11.200 3 7 7 0 0 0 21 12.800z"/></svg></button>
         <button class="ibtn" id="out" title="Sign out" aria-label="Sign out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
       </div>
     </div>
     <div id="tray" class="tray"></div>
     <div id="pushbar" class="pushbar hidden"><div><b>Turn on notifications</b><small>Get calls and messages even when aveysocial is closed.</small></div><button class="btn" id="push-on" type="button">Turn on</button><button class="ibtn" id="push-x" type="button" aria-label="Dismiss">✕</button></div>
+    <div class="ptabs" id="ptabs"><button type="button" data-p="chats" class="on">Chats</button><button type="button" data-p="groups">Groups</button><button type="button" data-p="channels">Channels</button><button type="button" data-p="contacts">Contacts</button></div>
     <div class="searchbox"><input class="field" id="q" placeholder="Search people" aria-label="Search people"></div>
     <div id="list"></div>
   </aside>
@@ -72,6 +77,8 @@
         </div>
       </div>
       <div id="log"></div>
+      <div id="replybar" class="hidden"><div><b id="rb-t"></b><span id="rb-s"></span></div><button class="ibtn" id="rb-x" type="button" aria-label="Cancel">✕</button></div>
+      <div id="ro" class="hidden">Only admins can post in this channel</div>
       <form class="composer" id="send">
         <input type="file" id="file" multiple class="hidden">
         <button type="button" class="ibtn big" id="attach" title="Send a photo or file" aria-label="Send a photo or file"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.500" cy="8.500" r="1.500"/><path d="M21 15l-5-5L5 21"/></svg></button>

@@ -205,3 +205,133 @@ returns void language sql security definer set search_path = public as $$
   on conflict (endpoint) do update set user_id = auth.uid(), p256dh = excluded.p256dh, auth = excluded.auth;
 $$;
 grant execute on function public.save_push_subscription(text, text, text) to authenticated;
+
+
+-- ===== message actions: reply, edit, delete =====
+alter table public.messages add column if not exists reply_to bigint references public.messages(id) on delete set null;
+alter table public.messages add column if not exists edited_at timestamptz;
+drop policy if exists "edit own messages" on public.messages;
+create policy "edit own messages" on public.messages for update to authenticated using (auth.uid() = sender_id) with check (auth.uid() = sender_id);
+drop policy if exists "delete own messages" on public.messages;
+create policy "delete own messages" on public.messages for delete to authenticated using (auth.uid() = sender_id);
+alter table public.messages replica identity full;
+
+-- ===== contacts, groups and channels =====
+create table if not exists public.contacts (
+  owner_id uuid not null references public.profiles(id) on delete cascade,
+  contact_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (owner_id, contact_id), check (owner_id <> contact_id)
+);
+create table if not exists public.rooms (
+  id bigint generated always as identity primary key,
+  kind text not null check (kind in ('group','channel')),
+  name text not null check (char_length(name) between 2 and 40),
+  description text not null default '' check (char_length(description) <= 120),
+  owner_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+create table if not exists public.room_members (
+  room_id bigint not null references public.rooms(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  role text not null default 'member' check (role in ('owner','admin','member')),
+  last_read_at timestamptz not null default now(),
+  joined_at timestamptz not null default now(),
+  primary key (room_id, user_id)
+);
+create table if not exists public.room_messages (
+  id bigint generated always as identity primary key,
+  room_id bigint not null references public.rooms(id) on delete cascade,
+  sender_id uuid not null references public.profiles(id) on delete cascade,
+  body text not null check (char_length(body) between 1 and 2000),
+  reply_to bigint references public.room_messages(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists room_messages_idx on public.room_messages (room_id, created_at);
+
+create or replace function public.is_member(p_room bigint) returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from room_members where room_id = p_room and user_id = auth.uid()) $$;
+create or replace function public.is_room_admin(p_room bigint) returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from room_members where room_id = p_room and user_id = auth.uid() and role in ('owner','admin')) $$;
+create or replace function public.can_post(p_room bigint) returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from room_members m join rooms r on r.id = m.room_id
+    where m.room_id = p_room and m.user_id = auth.uid() and (r.kind = 'group' or m.role in ('owner','admin'))) $$;
+
+alter table public.contacts enable row level security;
+alter table public.rooms enable row level security;
+alter table public.room_members enable row level security;
+alter table public.room_messages enable row level security;
+
+drop policy if exists "own contacts" on public.contacts;
+create policy "own contacts" on public.contacts for select to authenticated using (auth.uid() = owner_id);
+drop policy if exists "add contact" on public.contacts;
+create policy "add contact" on public.contacts for insert to authenticated with check (auth.uid() = owner_id);
+drop policy if exists "remove contact" on public.contacts;
+create policy "remove contact" on public.contacts for delete to authenticated using (auth.uid() = owner_id);
+
+drop policy if exists "see rooms" on public.rooms;
+create policy "see rooms" on public.rooms for select to authenticated using (kind = 'channel' or public.is_member(id));
+drop policy if exists "see members" on public.room_members;
+create policy "see members" on public.room_members for select to authenticated using (public.is_member(room_id) or user_id = auth.uid());
+drop policy if exists "read room messages" on public.room_messages;
+create policy "read room messages" on public.room_messages for select to authenticated using (public.is_member(room_id));
+drop policy if exists "post room messages" on public.room_messages;
+create policy "post room messages" on public.room_messages for insert to authenticated with check (sender_id = auth.uid() and public.can_post(room_id));
+drop policy if exists "delete room messages" on public.room_messages;
+create policy "delete room messages" on public.room_messages for delete to authenticated using (sender_id = auth.uid() or public.is_room_admin(room_id));
+
+create or replace function public.create_room(p_kind text, p_name text, p_desc text, p_members uuid[]) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare rid bigint;
+begin
+  insert into rooms (kind, name, description, owner_id) values (p_kind, trim(p_name), coalesce(p_desc, ''), auth.uid()) returning id into rid;
+  insert into room_members (room_id, user_id, role) values (rid, auth.uid(), 'owner');
+  if p_kind = 'group' and p_members is not null then
+    insert into room_members (room_id, user_id) select rid, id from profiles where id = any(p_members) and id <> auth.uid() on conflict do nothing;
+  end if;
+  return rid;
+end $$;
+create or replace function public.join_room(p_room bigint) returns void language sql security definer set search_path = public as $$
+  insert into room_members (room_id, user_id) select id, auth.uid() from rooms where id = p_room and kind = 'channel' on conflict do nothing $$;
+create or replace function public.add_members(p_room bigint, p_members uuid[]) returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_room_admin(p_room) then raise exception 'Only admins can add members'; end if;
+  insert into room_members (room_id, user_id) select p_room, id from profiles where id = any(p_members) on conflict do nothing;
+end $$;
+create or replace function public.set_role(p_room bigint, p_user uuid, p_role text) returns void language plpgsql security definer set search_path = public as $$
+begin
+  if p_role not in ('admin','member') then raise exception 'Bad role'; end if;
+  if not exists (select 1 from rooms where id = p_room and owner_id = auth.uid()) then raise exception 'Only the owner can change roles'; end if;
+  update room_members set role = p_role where room_id = p_room and user_id = p_user and role <> 'owner';
+end $$;
+create or replace function public.leave_room(p_room bigint) returns void language plpgsql security definer set search_path = public as $$
+declare nxt uuid;
+begin
+  delete from room_members where room_id = p_room and user_id = auth.uid();
+  select user_id into nxt from room_members where room_id = p_room order by (role = 'admin') desc, joined_at limit 1;
+  if nxt is null then delete from rooms where id = p_room;
+  elsif exists (select 1 from rooms where id = p_room and owner_id = auth.uid()) then
+    update rooms set owner_id = nxt where id = p_room;
+    update room_members set role = 'owner' where room_id = p_room and user_id = nxt;
+  end if;
+end $$;
+create or replace function public.mark_room_read(p_room bigint) returns void language sql security definer set search_path = public as $$
+  update room_members set last_read_at = now() where room_id = p_room and user_id = auth.uid() $$;
+grant execute on function public.create_room(text, text, text, uuid[]), public.join_room(bigint), public.add_members(bigint, uuid[]),
+  public.set_role(bigint, uuid, text), public.leave_room(bigint), public.mark_room_read(bigint) to authenticated;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['rooms','room_members','room_messages','contacts'] loop
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
+-- ===== verified (blue) badge =====
+alter table public.profiles add column if not exists verified boolean not null default false;
+-- users may edit only their bio and photo, so nobody can give themselves a badge
+revoke update on public.profiles from authenticated;
+grant update (bio, avatar_url) on public.profiles to authenticated;
